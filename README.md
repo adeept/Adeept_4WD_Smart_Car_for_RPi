@@ -1,6 +1,6 @@
 # Adeept 4WD Smart Car for Raspberry Pi
 
-Adeept 4WD Smart Car is an open source intelligent robotics product for artificial intelligence, robotics enthusiasts and students. This product is based on the Raspberry Pi motherboard using the python language and is compatible with the following Raspberry Pi models: 3B,3B+,4,5, etc.
+The Adeept 4WD Smart Car is an open-source intelligent robotics product specially designed for enthusiasts and students in artificial intelligence and robotics. Developed based on the Raspberry Pi motherboard and programmed in Python, it is compatible with multiple Raspberry Pi models including 3B, 3B+, 4, and 5, and offers two versions: Mecanum wheel and Ordinary wheel.
 
 ## Resources Links
 
