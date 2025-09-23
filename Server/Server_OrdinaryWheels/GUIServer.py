@@ -18,6 +18,7 @@ import socket
 import ast
 import FPV
 import json
+import subprocess
 
 Dv = -1 #Directional variable
 OLED_connection = 1
@@ -94,10 +95,6 @@ def FPV_thread():
     global fpv
     fpv=FPV.FPV()
     fpv.capture_thread(addr[0])
-
-
-def ap_thread():
-    os.system("sudo create_ap wlan0 eth0 Adeept_Robot 12345678")
 
 
 def functionSelect(command_input, response):
@@ -314,65 +311,6 @@ def configPWM(command_input):
         for i in range(5):
             scGear.moveAngle(i, 0)
 
-
-
-def wifi_check():
-    global mark_test
-    try:
-        time.sleep(3)
-        s =socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
-        s.connect(("1.1.1.1",80))
-        ipaddr_check=s.getsockname()[0]
-        s.close()
-        print(ipaddr_check)
-        #update_code()
-        if OLED_connection:
-            screen.screen_show(2, 'IP:'+ipaddr_check)
-            screen.screen_show(3, 'AP MODE OFF')
-        mark_test = 1  
-    except:
-        if mark_test == 1:
-            mark_test = 0
-            move.destroy()      # motor stop.
-            scGear.moveInit()   # servo  back initial position.
-
-        ap_threading=threading.Thread(target=ap_thread)   #Define a thread for data receiving
-        ap_threading.setDaemon(True)                          #'True' means it is a front thread,it would close when the mainloop() closes
-        ap_threading.start()                                  #Thread starts
-        if OLED_connection:
-            screen.screen_show(2, 'AP Starting 10%')
-        ws2812.set_all_led_color_data(0,16,50)
-        ws2812.show()
-        time.sleep(1)
-        if OLED_connection:
-            screen.screen_show(2, 'AP Starting 30%')
-        ws2812.set_all_led_color_data(0,16,100)
-        ws2812.show()
-        time.sleep(1)
-        if OLED_connection:
-            screen.screen_show(2, 'AP Starting 50%')
-        ws2812.set_all_led_color_data(0,16,150)
-        ws2812.show()
-        time.sleep(1)
-        if OLED_connection:
-            screen.screen_show(2, 'AP Starting 70%')
-        ws2812.set_all_led_color_data(0,16,200)
-        ws2812.show()
-        time.sleep(1)
-        if OLED_connection:
-            screen.screen_show(2, 'AP Starting 90%')
-        ws2812.set_all_led_color_data(0,16,255)
-        ws2812.show()
-        time.sleep(1)
-        if OLED_connection:
-            screen.screen_show(2, 'AP Starting 100%')
-        ws2812.set_all_led_color_data(35,255,35)
-        ws2812.show()
-        if OLED_connection:
-            screen.screen_show(2, 'IP:192.168.12.1')
-            screen.screen_show(3, 'AP MODE ON')
-
-
 def recv_msg(tcpCliSock):
     global speed_set, modeSelect
     move.setup()
@@ -481,21 +419,43 @@ def recv_msg(tcpCliSock):
         response = json.dumps(response)
         tcpCliSock.sendall(response.encode())
 
-def test_Network_Connection():
-    while True:
-        try:
-            s =socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
-            s.connect(("1.1.1.1",80))
-            s.close()
-        except:
-            move.destroy()
-        
-        time.sleep(0.5)
+
+def show_wlan0_ip():
+    try:
+        if OLED_connection:
+            result = subprocess.run(
+                "ifconfig wlan0 | grep 'inet ' | awk '{print $2}'",
+                shell=True,
+                check=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                encoding='utf-8'
+            ) 
+            screen.screen_show(2, "IP:" + result.stdout.strip())
+    except Exception as e:
+        pass
+
+def show_network_mode():
+    try:
+        if OLED_connection:
+            result = subprocess.run(
+                "if iw dev wlan0 link | grep -q 'Connected'; then echo 'Station Mode'; else echo 'AP Mode'; fi",
+                shell=True,
+                check=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                encoding='utf-8'
+            )
+            screen.screen_show(3, result.stdout.strip())
+    except Exception as e:
+        pass
 
 if __name__ == '__main__':
     switch.switchSetup()
     switch.set_all_switch_off()                                  
-
+    show_wlan0_ip()
+    time.sleep(0.5)
+    show_network_mode()
     ws2812=robotLight.Adeept_SPI_LedPixel(16, 255)
     try:
         if ws2812.check_spi_state() != 0:
@@ -510,10 +470,8 @@ if __name__ == '__main__':
     BUFSIZ = 1024                             #Define buffer size
     ADDR = (HOST, PORT)
 
-   
-    wifi_check()
-    try:                  #Start server,waiting for client
-        tcpSerSock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:                  
+        tcpSerSock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)    #Start server,waiting for client
         tcpSerSock.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)
         tcpSerSock.bind(ADDR)
         tcpSerSock.listen(5)                   
