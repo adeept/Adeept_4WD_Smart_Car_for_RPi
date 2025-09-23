@@ -6,6 +6,7 @@ from board import SCL, SDA
 import busio
 from adafruit_motor import servo
 from adafruit_pca9685 import PCA9685
+import time
 
 i2c = busio.I2C(SCL, SDA)
 pwm_servo = PCA9685(i2c, address=0x5f)  
@@ -21,5 +22,5 @@ for i in range(servo_num):
         actuation_range=180
     )
     servo_angle.angle = 90
-
-pwm_servo.deinit()
+while True:
+    time.sleep(1)
