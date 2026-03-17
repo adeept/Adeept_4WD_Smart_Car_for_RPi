@@ -7,7 +7,7 @@ from importlib import import_module
 import os
 from flask import Flask, render_template, Response, send_from_directory
 from flask_cors import *
-
+import camera_opencv
 from camera_opencv import Camera
 import threading
 
@@ -63,8 +63,14 @@ class webapp:
     def modeselect(self, modeInput):
         Camera.modeSelect = modeInput
 
+    def modeselectApp(self, modeInput):
+        camera_opencv.APPMode = modeInput
+
     def colorFindSet(self, H, S, V):
         camera.colorFindSet(H, S, V)
+        
+    def colorFindSetApp(self, H, S, V):
+        camera.colorFindSetApp(H, S, V)
 
     def thread(self):
         app.run(host='0.0.0.0', port=5000,threaded=True)

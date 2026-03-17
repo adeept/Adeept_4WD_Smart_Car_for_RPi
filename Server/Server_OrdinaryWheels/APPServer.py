@@ -20,8 +20,8 @@ import app
 import Voltage
 import camera_opencv
 import subprocess
+import Buzzer
 
-Dv = -1 #Directional variable
 OLED_connection = 1
 
 try:
@@ -29,7 +29,6 @@ try:
     screen = OLED.OLED_ctrl()
     screen.start()
     screen.screen_show(1, 'ADEEPT.COM')
-    screen.screen_show(4, 'PT MODE ON')
 except:
     OLED_connection = 0
     print('OLED disconnected')
@@ -65,6 +64,10 @@ fuc.start()
 batteryMonitor = Voltage.BatteryLevelMonitor()
 batteryMonitor.start()
 
+#buzzer
+player = Buzzer.Player()
+player.start()
+
 curpath = os.path.realpath(__file__)
 thisPath = "/" + os.path.dirname(curpath)
 
@@ -91,6 +94,7 @@ def functionSelect(command_input, response):
             screen.screen_show(5,'FindColor')
         if modeSelect == 'PT':
             flask_app.modeselect('findColor')
+            flask_app.modeselectApp('APP')
 
     elif 'motionGet' == command_input:
         if OLED_connection:
@@ -137,13 +141,13 @@ def functionSelect(command_input, response):
         time.sleep(0.5)
         move.motorStop()
         
-    elif 'trackLight' == command_input:
+    elif 'lightTrack' == command_input:
         functions.last_status = 0
         fuc.trackLight()
         if OLED_connection:
             screen.screen_show(5,'TrackLight')
 
-    elif 'trackLightOff' == command_input:
+    elif 'lightTrackOff' == command_input:
         if OLED_connection:
             screen.screen_show(5,'FUNCTION OFF')
         fuc.pause()
@@ -177,6 +181,12 @@ def functionSelect(command_input, response):
         time.sleep(0.5)
         move.motorStop()
 
+    elif 'Buzzer_Music' == command_input:
+        player.start_playing()
+
+    elif 'Buzzer_Music_Off' == command_input:
+        player.pause()
+
 def switchCtrl(command_input, response):
     if 'Switch_1_on' in command_input:
         switch.switch(1,1)
@@ -198,29 +208,21 @@ def switchCtrl(command_input, response):
 
 
 def robotCtrl(command_input, response):
-    if 'forward' == command_input:
+    clen = len(command_input.split())
+    if 'forward' in command_input and clen == 2:
         move.move(speed_set, 1, "mid")
-    
-    elif 'backward' == command_input:
+
+    elif 'backward' in command_input and clen == 2:
         move.move(speed_set, -1, "mid")
 
-    elif 'DS' in command_input:
-        move.motorStop()
-
-    elif 'left' == command_input:
-        move.move(speed_set, 1, "left")
-
-    elif 'right' == command_input:
-        move.move(speed_set, 1, "right")
-
-    elif 'TS' in command_input:
-        move.motorStop()
-    
-    elif 'rotate-left' == command_input:
+    elif 'left' in command_input and clen == 2:
         move.move(speed_set, 1, "rotate-left")
     
-    elif 'rotate-right' == command_input:
+    elif 'right' in command_input and clen == 2:
         move.move(speed_set, 1, "rotate-right")
+
+    elif 'DTS' in command_input:
+        move.motorStop()
     
     elif 'lookleft' == command_input:
         scGear.singleServo(0, 1, 7)
@@ -228,9 +230,8 @@ def robotCtrl(command_input, response):
     elif 'lookright' == command_input:
         scGear.singleServo(0,-1, 7)
 
-    elif 'LRstop' in command_input:
+    elif 'LRStop' in command_input:
         scGear.stopWiggle()
-
 
     elif 'up' == command_input:
         scGear.singleServo(1, 1, 7)
@@ -300,19 +301,7 @@ def configPWM(command_input, response):
         init_pwm4 = 90
         for i in range(5):
             scGear.moveAngle(i, 0)
-            
 
-async def check_permit(websocket):
-    while True:
-        recv_str = await websocket.recv()
-        cred_dict = recv_str.split(":")
-        if cred_dict[0] == "admin" and cred_dict[1] == "123456":
-            response_str = "congratulation, you have connect with server\r\nnow, you can do something else"
-            await websocket.send(response_str)
-            return True
-        else:
-            response_str = "sorry, the username or password is wrong, please submit again"
-            await websocket.send(response_str)
 
 async def recv_msg(websocket):
     global speed_set, modeSelect
@@ -345,13 +334,15 @@ async def recv_msg(websocket):
             configPWM(data, response)
 
             if 'get_info' == data:
+                vol = batteryMonitor.get_battery_percentage()
                 response['title'] = 'get_info'
-                response['data'] = [info.get_cpu_tempfunc(), info.get_cpu_use(), info.get_ram_info()]
-
+                response['data'] = [info.get_cpu_tempfunc(), info.get_cpu_use(), info.get_ram_info(), vol]
+                if OLED_connection:
+                    screen.screen_show(4,f'bat level:{vol}%')
             if 'wsB' in data:
                 try:
                     set_B=data.split()
-                    speed_set = int(set_B[1])
+                    speed_set = int(set_B[1])*10
                 except:
                     pass
 
@@ -379,9 +370,18 @@ async def recv_msg(websocket):
                 flask_app.camera.errorSet(err)
 
         elif(isinstance(data,dict)):
-            if data['title'] == "findColorSet":
-                color = data['data']
-                flask_app.colorFindSet(color[0],color[1],color[2])
+            color = data['data']
+            if "title" in data and data['title'] == "findColorSet":
+                flask_app.colorFindSetApp(color[0],color[1],color[2])
+            elif data['lightMode'] == "breath":  
+                ws2812.breath(color[0],color[1],color[2])
+            elif data['lightMode'] == "flowing":
+                ws2812.flowing(color[0],color[1],color[2])
+            elif data['lightMode'] == "rainbow":
+                ws2812.rainbow(color[0],color[1],color[2])
+            elif data['lightMode'] == "police":
+                ws2812.police()
+
 
         else:
             pass
@@ -390,7 +390,6 @@ async def recv_msg(websocket):
         await websocket.send(response)
 
 async def main_logic(websocket, path):
-    await check_permit(websocket)
     await recv_msg(websocket)
 
 def show_wlan0_ip():
@@ -466,7 +465,6 @@ if __name__ == '__main__':
         ws2812.led_close()
         move.destroy()
     except KeyboardInterrupt:
-        
         ws2812.led_close()
         matrix.matrix_display.fill(0) 
         move.destroy()
