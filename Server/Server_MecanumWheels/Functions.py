@@ -116,7 +116,7 @@ class Functions(threading.Thread):
 			pwm0_pos-=scan_speed
 			scGear.moveAngle(0, pwm0_pos)
 			dist = ultra.checkdist()
-			if dist > 200:
+			if dist > 50:
 				continue
 			theta = 90 - pwm0_pos 
 			result.append([dist, theta])
